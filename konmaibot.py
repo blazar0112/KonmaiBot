@@ -39,48 +39,54 @@ options.add_experimental_option("excludeSwitches", ["enable-logging"])
 driver = webdriver.Chrome(options=options, executable_path=chrome_driver_path)
 driver.implicitly_wait(5)
 
-eagate_url = 'https://p.eagate.573.jp/index.html'
 eapass_url = 'https://p.eagate.573.jp/gate/eapass/menu.html'
 janken_url = 'https://p.eagate.573.jp/game/bemani/bjm2020/janken/index.html'
 card_game_url = 'https://p.eagate.573.jp/game/bemani/wbr2020/01/card.html'
+
+japanese_names = { Move.Rock:'グー', Move.Paper:'パー', Move.Scissors:'チョキ' }
+manual_execute_work = False
 
 card_list = []
 driver.get(eapass_url)
 
 def setup():
     driver.get(eapass_url)
-    select = webdriver.support.ui.Select(driver.find_element_by_name('eapasslist'))
+    time.sleep(3)
+    list_element = driver.find_element_by_name('eapasslist')
+    if list_element.is_displayed() is False:
+        card_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div[7]/div/div[2]')
+        card_list.append(card_element.text)
+        print('current referencing card =', card_element.text)
+        return
+
+    select = webdriver.support.ui.Select(list_element)
     for option in select.options:
         card_list.append(option.text)
     print('card list', card_list)
 
-    card_index_now_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[1]/div[1]/span[1]')
-    index = int(card_index_now_element.text)-1
-
-    ref_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div['+card_index_now_element.text+']/div/div[3]/div')
-    if ref_element.is_displayed():
-        raise Exception('default tab of eapass is not referencing card.')
+    card_num_now_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[1]/div[1]/span[1]')
+    index = int(card_num_now_element.text)-1
 
     print('current referencing card =', card_list[index])
-
-manual_execute_work = False
 
 def switch_card(index):
     driver.get(eapass_url)
     time.sleep(3)
-    select = webdriver.support.ui.Select(driver.find_element_by_name('eapasslist'))
-    select.select_by_value(str(index))
-    div_index = str(index+1)
-
-    button_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div['+div_index+']/div/div[2]/button')
+    list_element = driver.find_element_by_name('eapasslist')
+    if list_element.is_displayed():
+        select = webdriver.support.ui.Select(list_element)
+        select.select_by_value(str(index))
+        div_index = str(index+1)
+        button_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div['+div_index+']/div/div[2]/button')
+    else:
+        button_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div[2]/button')
+                                                       
     if button_element.is_displayed():
         button_element.click()
         print('switch to card['+str(index)+']', card_list[index])
     else:
         print('try to switch to card['+str(index)+']', card_list[index], 'but card is already referenced.')
  
-japanese_names = { Move.Rock:'グー', Move.Paper:'パー', Move.Scissors:'チョキ' }
-
 def print_stamp(name):
     try:
         stamp_element = driver.find_element_by_xpath('//*[@id="inc-janken"]/div/div/p[2]/strong')
@@ -135,7 +141,6 @@ def run_card_game_bot():
     print_stamp('CardGame')
 
 def do_background_work():
-    this_thread = threading.currentThread()
     def work():
         print('\n'+datetime.now().strftime('[%Y-%m-%d %H:%M:%S]'), 'running bots...')
         for index in range(0, len(card_list)):
@@ -146,7 +151,8 @@ def do_background_work():
         print(datetime.now().strftime('[%Y-%m-%d %H:%M:%S]'), 'work finished.')
 
     schedule.every().hour.do(work)
-    work()
+
+    this_thread = threading.currentThread()
     global manual_execute_work
     while getattr(this_thread, 'do_run', True):
         schedule.run_pending()
@@ -158,9 +164,10 @@ def do_background_work():
 thread = threading.Thread(target=do_background_work)
 thread.start()
 
-print('Konmai Bot: auto execute web games every hour')
+print('Konmai Bot: auto execute web games every hour:')
 print('enter anything after login to start bot!')
 print('enter h to see commands.')
+print('enter w to immediately execute work.')
 print('enter q to quit.')
 
 while True:
@@ -176,6 +183,10 @@ while True:
             setup()
         if command=='w':
             manual_execute_work = True
+        if command=='t':
+            #card_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div[7]/div/div[2]')
+            #print('card =', card_element.text)
+            print('list is visible = ', driver.find_element_by_name('eapasslist').is_displayed())
     except KeyboardInterrupt:
         break
     except Exception as e:
