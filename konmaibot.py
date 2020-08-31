@@ -135,6 +135,7 @@ def run_card_game_bot():
             card_move = random.choice(list(CardMove))
         card_element = driver.find_element_by_xpath('//*[@id="card'+str(card_move.value)+'"]')
         card_element.click()
+        print('CardGame move selected:', card_move.name, 'card.')
     except:
         print('Already selected CardGame move.')
 
@@ -146,7 +147,7 @@ def do_background_work():
         for index in range(0, len(card_list)):
             switch_card(index)
             time.sleep(5)
-            run_janken_bot()
+            #run_janken_bot()
             run_card_game_bot()
         print(datetime.now().strftime('[%Y-%m-%d %H:%M:%S]'), 'work finished.')
 
