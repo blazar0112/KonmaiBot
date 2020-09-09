@@ -34,7 +34,7 @@ fixed_card_move = CardMove.Right
 # Don't modify anything below
 # =================================================================
 
-options = webdriver.ChromeOptions() 
+options = webdriver.ChromeOptions()
 options.add_experimental_option("excludeSwitches", ["enable-logging"])
 driver = webdriver.Chrome(options=options, executable_path=chrome_driver_path)
 driver.implicitly_wait(5)
@@ -80,13 +80,13 @@ def switch_card(index):
         button_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div['+div_index+']/div/div[2]/button')
     else:
         button_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div[2]/button')
-                                                       
+
     if button_element.is_displayed():
         button_element.click()
         print('switch to card['+str(index)+']', card_list[index])
     else:
         print('try to switch to card['+str(index)+']', card_list[index], 'but card is already referenced.')
- 
+
 def print_stamp(name):
     try:
         stamp_element = driver.find_element_by_xpath('//*[@id="inc-janken"]/div/div/p[2]/strong')
@@ -144,14 +144,20 @@ def run_card_game_bot():
 def do_background_work():
     def work():
         print('\n'+datetime.now().strftime('[%Y-%m-%d %H:%M:%S]'), 'running bots...')
-        for index in range(0, len(card_list)):
-            switch_card(index)
-            time.sleep(5)
-            #run_janken_bot()
-            run_card_game_bot()
+        try:
+            if len(card_list)==0:
+                setup()
+                time.sleep(3)
+            for index in range(0, len(card_list)):
+                switch_card(index)
+                time.sleep(5)
+                #run_janken_bot()
+                run_card_game_bot()
+        except Exception as e:
+            print('Exception in work thread:', str(e))
         print(datetime.now().strftime('[%Y-%m-%d %H:%M:%S]'), 'work finished.')
 
-    schedule.every().hour.do(work)
+    schedule.every().hour.do(work).tag('work')
 
     this_thread = threading.currentThread()
     global manual_execute_work
@@ -162,6 +168,9 @@ def do_background_work():
             work()
             manual_execute_work = False
 
+    schedule.clear('work')
+    print('worker thread stopped.')
+
 thread = threading.Thread(target=do_background_work)
 thread.start()
 
@@ -169,6 +178,7 @@ print('Konmai Bot: auto execute web games every hour:')
 print('enter anything after login to start bot!')
 print('enter h to see commands.')
 print('enter w to immediately execute work.')
+print('enter r to restart thread if stuck.')
 print('enter q to quit.')
 
 while True:
@@ -176,23 +186,32 @@ while True:
         command = input(datetime.now().strftime('[%Y-%m-%d %H:%M:%S] '))
         if command.startswith('h'):
             print('command: h, help  : print command help\n'
-                  '         w        : immediate execute work.\n'
+                  '         w        : immediately execute work.\n'
+                  '         r        : restart work thread.\n'
                   '         q        : quit.')
         if command=='q':
             break
-        if len(card_list)==0:
+        if command=='setup':
             setup()
         if command=='w':
             manual_execute_work = True
+        if command=='r':
+            thread.do_run = False
+            thread.join()
+            print('thread restarted.')
+            thread = threading.Thread(target=do_background_work)
+            thread.start()
+
         if command=='t':
             #card_element = driver.find_element_by_xpath('//*[@id="id_ea_common_content"]/div/div[3]/div[3]/div/div[2]/div/div/div/div/div[7]/div/div[2]')
             #print('card =', card_element.text)
             print('list is visible = ', driver.find_element_by_name('eapasslist').is_displayed())
+
     except KeyboardInterrupt:
         break
     except Exception as e:
         print('Exception:', str(e))
-    
+
 driver.quit()
 
 thread.do_run = False
